@@ -32,9 +32,21 @@ const content = [
   `<@&${roleId}>`,
   "🚨 **新しいガンプラ関連商品が見つかりました！**",
   "",
-  ...newItems.map(item =>
-    `**${item.name}**\n💴 ${item.price}\n📅 ${item.reservationStart || "日付情報なし"}\n🔗 ${item.url}`
-  )
+  ...newItems.map(item => {
+    let dateInfo = "";
+
+    if (item.lotteryPeriod) {
+      // 抽選販売対応
+      dateInfo = `🎯 **抽選受付期間**: ${item.lotteryPeriod}\n📢 **当選発表**: ${item.announceDate || "不明"}`;
+    } else if (item.reservationStart) {
+      // 通常予約対応
+      dateInfo = `📅 **予約受付開始**: ${item.reservationStart}`;
+    } else {
+      dateInfo = "📅 日付情報なし";
+    }
+
+    return `**${item.name}**\n💴 ${item.price}\n${dateInfo}\n🔗 ${item.url}`;
+  })
 ].join("\n\n");
 
 // Discordへ送信
