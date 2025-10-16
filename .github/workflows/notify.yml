@@ -1,0 +1,28 @@
+name: P-Bandai Watcher
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # 30分ごと
+  workflow_dispatch:        # 手動実行も可（GitHub上から）
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: 🟢 Node.js をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 📚 必要な依存関係をインストール
+        run: npm install puppeteer node-fetch@3
+
+      - name: 🚀 プレバン監視＋Discord通知を実行
+        run: |
+          node step4_keyword_filter.js
+          node step5_fetch_dates.js
+          node notify_discord.js
