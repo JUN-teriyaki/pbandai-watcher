@@ -13,7 +13,11 @@ const toHalfWidth = (str) => {
   const url = 'https://search.p-bandai.jp/?lang=ja&page=1&q=&C5=30';
   console.log('🔍 ページを読み込み中…');
 
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
