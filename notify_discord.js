@@ -1,45 +1,64 @@
-import fetch from "node-fetch";
+// notify_discord.js
 import fs from "fs";
+import fetch from "node-fetch";
+import { execSync } from "child_process";
 
-// Discord Webhook URL とロールID
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1418421788341178368/jdwC0H4LhEfDRqoRRawh1A8bMez3sLAy-aC27AkKrFwNl9so_-xQIY0uh_8PxEGOR_h9";
-const ROLE_ID = "1417772334886027304"; // メンション対象ロール
+const webhookUrl = "https://discord.com/api/webhooks/1418421788341178368/jdwC0H4LhEfDRqoRRawh1A8bMez3sLAy-aC27AkKrFwNl9so_-xQIY0uh_8PxEGOR_h9";
+const roleId = "1417772334886027304";
 
-async function sendDiscordNotification(items) {
-  const embeds = items.map(item => ({
-    title: item.name,
-    url: item.url,
-    description: `💰 **価格:** ${item.price}\n🕒 **予約受付開始:** ${item.reservationStart}`,
-    color: 0x00b0f4
-  }));
+// 通知済みリストファイル
+const notifiedFile = "./notified_items.json";
+let notified = [];
 
-  const message = {
-    content: `<@&${ROLE_ID}> 📢 **新しい予約情報をお知らせします！**`,
-    embeds
-  };
-
-  const res = await fetch(WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(message)
-  });
-
-  if (!res.ok) {
-    throw new Error(`通知失敗 (${res.status}): ${res.statusText}`);
-  }
+if (fs.existsSync(notifiedFile)) {
+  notified = JSON.parse(fs.readFileSync(notifiedFile, "utf-8"));
 }
 
-async function main() {
-  console.log("📢 Discordへ通知を送信中…");
+console.log("📢 Discordへ通知を送信中…");
 
-  const data = JSON.parse(fs.readFileSync("./items_with_dates.json", "utf8"));
-  if (!Array.isArray(data) || data.length === 0) {
-    console.log("⚠️ 通知対象の商品がありません。");
-    return;
-  }
+// 商品データ読み込み
+const data = JSON.parse(fs.readFileSync("./items_with_dates.json", "utf-8"));
 
-  await sendDiscordNotification(data);
-  console.log(`✅ 通知送信成功: ${data.length}件の商品をまとめて送信しました！`);
+// 未通知の商品だけ抽出
+const newItems = data.filter(item => !notified.includes(item.url));
+
+if (newItems.length === 0) {
+  console.log("✅ 新しい商品はありません。通知をスキップします。");
+  process.exit(0);
 }
 
-main().catch(console.error);
+// Discordメッセージ本文をまとめて作成
+const content = [
+  `<@&${roleId}>`,
+  "🚨 **新しいガンプラ関連商品が見つかりました！**",
+  "",
+  ...newItems.map(item =>
+    `**${item.name}**\n💴 ${item.price}\n📅 ${item.reservationStart || "日付情報なし"}\n🔗 ${item.url}`
+  )
+].join("\n\n");
+
+// Discordへ送信
+await fetch(webhookUrl, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ content }),
+});
+
+console.log(`✅ ${newItems.length}件の通知を送信しました！`);
+
+// 通知済みURLをリストに追加・保存
+const updatedList = [...new Set([...notified, ...newItems.map(i => i.url)])];
+fs.writeFileSync(notifiedFile, JSON.stringify(updatedList, null, 2), "utf-8");
+console.log("💾 通知済みリストを更新しました。");
+
+// 🚀 GitHub Actions内で自動コミット・プッシュ
+try {
+  execSync(`git config user.name "github-actions"`);
+  execSync(`git config user.email "github-actions@github.com"`);
+  execSync(`git add ${notifiedFile}`);
+  execSync(`git commit -m "update notified list [skip ci]" || echo "No changes to commit"`);
+  execSync(`git push`);
+  console.log("✅ notified_items.json を自動的にコミット＆プッシュしました。");
+} catch (err) {
+  console.error("⚠️ Git push に失敗しました:", err.message);
+}
