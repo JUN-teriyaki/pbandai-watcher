@@ -21,9 +21,10 @@ async function fetchReservationDates() {
   });
 
   const page = await browser.newPage();
+
   await page.setUserAgent(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
   );
 
   const results = [];
@@ -38,20 +39,26 @@ async function fetchReservationDates() {
       await new Promise((r) => setTimeout(r, 2000));
 
       const info = await page.evaluate(() => {
-        const result = { reservationStart: null, lotteryPeriod: null, announcementDate: null };
+        const result = {
+          reservationStart: null,
+          lotteryPeriod: null,
+          announcementDate: null,
+        };
 
-        // ✅ 予約受付開始（通常販売用）を確実に取得
-        const rows = Array.from(document.querySelectorAll("table tr"));
-        for (const row of rows) {
-          const th = row.querySelector("th");
-          const td = row.querySelector("td");
-          if (th && td && th.textContent.replace(/\s+/g, "").includes("予約受付開始")) {
-            result.reservationStart = td.textContent.trim();
-            break;
+        // ✅ 通常商品の「予約受付開始」を抽出
+        const specTable = document.querySelector("table.pb24-item-main__spec");
+        if (specTable) {
+          const rows = specTable.querySelectorAll("tr");
+          for (const row of rows) {
+            const th = row.querySelector("th");
+            const td = row.querySelector("td");
+            if (th && td && th.textContent.includes("予約受付開始")) {
+              result.reservationStart = td.textContent.trim();
+            }
           }
         }
 
-        // ✅ 抽選販売（受付期間・当選発表）
+        // ✅ 抽選商品の「受付期間」「当選発表」
         const lottery = document.querySelector(".pb24-item-main__lotterycart--data");
         if (lottery) {
           const dts = lottery.querySelectorAll("dt");
@@ -61,15 +68,6 @@ async function fetchReservationDates() {
             const value = dds[i]?.textContent.trim() || "";
             if (label.includes("受付期間")) result.lotteryPeriod = value;
             if (label.includes("当選発表")) result.announcementDate = value;
-          }
-        }
-
-        // ✅ 予約受付開始が table 以外の場所（まれなケース）に書かれている場合の保険
-        if (!result.reservationStart) {
-          const alt = Array.from(document.querySelectorAll("td, div, p"))
-            .find((el) => el.textContent.includes("予約受付開始"));
-          if (alt) {
-            result.reservationStart = alt.textContent.replace("予約受付開始", "").trim();
           }
         }
 
@@ -86,7 +84,7 @@ async function fetchReservationDates() {
   }
 
   await browser.close();
-  fs.writeFileSync(outputFile, JSON.stringify(results, null, 2));
+  fs.writeFileSync(outputFile, JSON.stringify(results, null, 2), "utf-8");
   console.log(`💾 結果を ${outputFile} に保存しました！`);
 }
 
