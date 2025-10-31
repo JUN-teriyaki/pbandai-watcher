@@ -30,7 +30,10 @@ const content = [
   "",
   ...newItems.map(item => {
     let dateInfo = "";
-    if (item.reservationStart) dateInfo += `📅 **予約開始**: ${item.reservationStart}\n`;
+
+    // 🩵 修正ポイント：date フィールドも reservationStart として扱う
+    const start = item.reservationStart || item.date;
+    if (start) dateInfo += `📅 **予約開始**: ${start}\n`;
     if (item.lotteryPeriod) dateInfo += `🎟️ **受付期間**: ${item.lotteryPeriod}\n`;
     if (item.announcementDate) dateInfo += `🏆 **当選発表**: ${item.announcementDate}\n`;
     if (!dateInfo) dateInfo = "📆 日付情報なし";
@@ -39,6 +42,7 @@ const content = [
   })
 ].join("\n\n");
 
+// Discord送信
 await fetch(webhookUrl, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
